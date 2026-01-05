@@ -1,0 +1,1757 @@
+﻿openapi: 3.0.0
+info:
+  title: Web-App for Managing Student Projects
+  version: 1.0.0
+
+tags:
+  - name: User Management
+    description: Base user accounts, invitations, and simple admin actions.
+  - name: Advanced User Management
+    description: Profile, password, and advanced admin account operations.
+  - name: Project Management
+    description: Managing student and research projects.
+  - name: Appointment Management
+    description: Managing appointments and scheduling.
+  - name: Commenting plus Settings
+    description: Commenting features and application settings (reserved).
+  - name: User
+    description: Endpoints acting on the authenticated user.
+  - name: Admin
+    description: Endpoints reserved for administrators.
+
+paths:
+  ############################
+  # USER MANAGEMENT (basic) #
+  ############################
+
+  /auth/login:
+    post:
+      summary: Log in with username or email and password
+      tags: [User Management, User]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                identifier:
+                  type: string
+                  description: Username or email address
+                password:
+                  type: string
+              required: [identifier, password]
+      responses:
+        "200":
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example.signature"
+                  user:
+                    $ref: "#/components/schemas/User"
+        "400":
+          description: Missing or invalid credentials
+        "401":
+          description: Login failed (wrong username/email or password)
+        "500":
+          description: Unexpected server error
+
+  /users/invite:
+    post:
+      summary: Invite a new user by email
+      tags: [User Management, Admin]
+      description: Admin-only endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                role:
+                  type: string
+                  enum: [admin, end_user]
+                projectId:
+                  type: string
+                  nullable: true
+              required: [email, role]
+      responses:
+        "201":
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Invitation email sent"
+                  invitationId:
+                    type: string
+                    example: "inv-789"
+        "400":
+          description: Invalid request body
+        "401":
+          description: Authentication required
+        "403":
+          description: Only admins may invite users
+        "500":
+          description: Unexpected server error
+
+  /auth/accept-invitation:
+    post:
+      summary: Create an account using an invitation
+      tags: [User Management, User]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                invitationId:
+                  type: string
+                  example: "inv-789"
+                username:
+                  type: string
+                  example: "newuser"
+                password:
+                  type: string
+                  example: "AnotherSafePassword123"
+                firstName:
+                  type: string
+                  example: "Alice"
+                lastName:
+                  type: string
+                  example: "Musterfrau"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Account successfully created"
+                  userId:
+                    type: string
+                    example: "1e7d3b2b-60f4-42db-a109-b4a894fa7d6a"
+        "400":
+          description: Invalid input or invitation expired
+        "404":
+          description: Invitation not found
+        "500":
+          description: Unexpected server error
+
+  /users:
+    get:
+      summary: Get all users (optionally filtered)
+      tags: [User Management, Admin]
+      description: Admin-only endpoint.
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+          required: false
+          description: Filter by username or email.
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /users/me:
+    put:
+      summary: Update own account
+      tags: [User Management, User]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Own account updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+  ###################################
+  # ADVANCED USER MANAGEMENT (G5)  #
+  ###################################
+
+  /profile:
+    get:
+      tags: [User Management, User]
+      summary: Display user profile
+      description: Returns the authenticated user's own account details.
+      responses:
+        "200":
+          description: User Details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized (missing or invalid token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /update-profile:
+    put:
+      tags: [User Management, User]
+      summary: Update user profile
+      description: Allows the authenticated user to update fields of their own account.
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/MyAccountUpdate"
+      responses:
+        "200":
+          description: Account updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Validation error (invalid field or format)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized (missing or invalid token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /profile/change-password:
+    post:
+      tags: [User Management, User]
+      summary: Change user password
+      description: >
+        Allows the authenticated user to change their password. The user must provide their current password and a new password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MyPasswordChange"
+      responses:
+        "204":
+          description: Password changed successfully (no content)
+        "400":
+          description: Validation error (invalid input or passwords do not match)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized (missing or invalid token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden (current password is incorrect)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users/{user_id}:
+    get:
+      tags: [Advanced User Management, Admin]
+      summary: Display details of user account (Just Admins)
+      description: Returns the selected user account details.
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          description: The target user's UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: User Details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized (missing or invalid token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden (user does not have permission to view this account)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      tags: [Advanced User Management, Admin]
+      summary: Update another user's account (Just Admins)
+      description: >
+        Allows an administrator to update another user's account data. All fields except the password can be changed directly.
+        The password can be changed by providing the admin's current password and the new password for the target user.
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          description: The target user's UUID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/AdminUserUpdate"
+      responses:
+        "200":
+          description: Account updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Validation error (invalid field or format)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized (missing or invalid token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden (user is not an admin or cannot modify this account)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [Advanced User Management, Admin]
+      summary: Delete a user account (Just Admins)
+      description: >
+        Deletes a user account and all comments created via this account. Only administrators can perform this action.
+        The client is expected to show a confirmation dialog before calling this endpoint.
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          description: The target user's UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: User account deleted successfully (no content)
+        "401":
+          description: Unauthorized (missing or invalid token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden (user is not an admin or cannot delete this account)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users/{user_id}/anonymize:
+    post:
+      tags: [Advanced User Management, Admin]
+      summary: Anonymize a user account (Just Admins)
+      description: >
+        Anonymizes a user account to delete personal data without deleting the account itself or data created by it.
+        After anonymization, it is no longer possible to log in with this account. This can be triggered either by the user
+        (on their own account) or by an administrator.
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          description: The target user's UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: User account anonymized successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized (missing or invalid token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden (user cannot anonymize this account)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  ###########################
+  # PROJECT MANAGEMENT API #
+  ###########################
+
+  /projects:
+    get:
+      tags: [Project Management, User]
+      summary: Retrieve all projects
+      description: Admin-only. Returns all projects with summary data.
+      operationId: listAllProjects
+      responses:
+        "200":
+          description: List of all projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectSummary"
+        "403":
+          description: Only admins are allowed to view all projects.
+    post:
+      tags: [Project Management, User]
+      summary: Create a new project
+      description: Admin-only. Creates a project and returns the full project details.
+      operationId: createProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "201":
+          description: Project created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectDetail"
+        "400":
+          description: Invalid input data.
+        "403":
+          description: Only admins can create projects.
+
+  /projects/mine:
+    get:
+      tags: [Project Management, User]
+      summary: Retrieve authenticated user's projects
+      description: Shows projects where the logged-in user is a manager or developer.
+      operationId: listMyProjects
+      responses:
+        "200":
+          description: User's projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectSummary"
+        "403":
+          description: The user is not authorized to view these projects.
+
+  /projects/search:
+    get:
+      tags: [Project Management, User]
+      summary: Search and filter projects
+      description: >
+        Unified filtering for projects. Use `filter` for filtering expressions,
+        optionally combined with `sort` and `fields`.
+      operationId: searchProjects
+      parameters:
+        - $ref: "#/components/parameters/filter"
+        - $ref: "#/components/parameters/sort"
+        - $ref: "#/components/parameters/fields"
+      responses:
+        "200":
+          description: Filtered project list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectSummary"
+
+  /projects/{projectId}:
+    parameters:
+      - in: path
+        name: projectId
+        schema:
+          type: integer
+        required: true
+        description: Unique ID of the project.
+    get:
+      tags: [Project Management, User]
+      summary: Get project details
+      description: Only admins or assigned managers/developers may access.
+      operationId: getProjectDetails
+      responses:
+        "200":
+          description: Project details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectDetail"
+        "403":
+          description: User is not allowed to view this project.
+        "404":
+          description: Project not found.
+    put:
+      tags: [Project Management, User]
+      summary: Edit an existing project
+      description: Only project managers can edit project data.
+      operationId: updateProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "200":
+          description: Project updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectDetail"
+        "403":
+          description: Only project managers can edit.
+        "404":
+          description: Project not found.
+    delete:
+      tags: [Project Management, User]
+      summary: Delete a project
+      description: Admin-only. Deletes the selected project.
+      operationId: deleteProject
+      responses:
+        "200":
+          description: Project deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  deletedProject:
+                    $ref: "#/components/schemas/ProjectSummary"
+        "403":
+          description: Only admins can delete projects.
+        "404":
+          description: Project not found.
+
+  /projects/{projectId}/analysis:
+    post:
+      tags: [Project Management, User]
+      summary: Analyze all contents of a project using AI
+      description: >
+        Performs an AI-based analysis over all textual contents of the selected
+        project (e.g. comments, descriptions, notes).
+        The user must be a manager of the project.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                contents:
+                  type: array
+                  description: All textual contents belonging to the project
+                  items:
+                    type: string
+                  example:
+                    - "The requirements are still unclear."
+                    - "We might miss the deadline if this continues."
+                    - "Client feedback was mostly positive."
+              required:
+                - contents
+      responses:
+        "200":
+          description: Analysis result generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    description: Human-readable analysis result
+                    example: >
+                      Overall sentiment is mixed. Several contents indicate
+                      uncertainty around requirements, which may pose a
+                      moderate deadline risk.
+                required:
+                  - result
+        "400":
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Authentication required
+        "403":
+          description: User is not a manager of the project
+        "404":
+          description: Project not found
+        "500":
+          description: Server error
+
+
+  ###############################
+  # APPOINTMENT MANAGEMENT     #
+  ###############################
+
+  /projects/{projectId}/appointment:
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      get:
+        tags: [Appointment Management, User]
+        summary: Get a single appointment
+        description: Returns details of a specific appointment
+        operationId: getAppointment
+        security:
+          - api-key: []
+        parameters:
+          - $ref: "#/components/parameters/filterByTk"
+        responses:
+          "200":
+            description: Appointment details
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    data:
+                      $ref: "#/components/schemas/appointment"
+          "404":
+            description: Appointment not found
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Error"
+
+  /projects/{projectId}/appointment/overview:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [Appointment Management, User]
+      summary: Get all appointments
+      description: >
+        Returns a list of appointments, optionally filtered. Sorted by
+        start_time by default. User must be manager or developer of the project.
+      operationId: listAppointments
+      security:
+        - api-key: []
+      parameters:
+        - $ref: "#/components/parameters/filter"
+        - $ref: "#/components/parameters/fields"
+      responses:
+        "200":
+          description: List of appointments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/appointment"
+                  meta:
+                    type: object
+                    properties:
+                      count:
+                        type: integer
+                        description: Total count of appointments
+        "403":
+          description: User does not have permission (not manager/developer of project)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /projects/{projectId}/appointment/create:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    post:
+      tags: [Appointment Management, User]
+      summary: Create a new appointment
+      description: >
+        Create a new appointment for a project. User must be manager or
+        developer of the project.
+      operationId: createAppointment
+      security:
+        - api-key: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/appointment"
+            examples:
+              meeting:
+                summary: Create a meeting appointment
+                value:
+                  title: Team Meeting
+                  description: Weekly sync meeting
+                  type: Meeting
+                  start_time: "2024-01-15T10:00:00.000Z"
+                  end_time: "2024-01-15T11:00:00.000Z"
+                  calendar_synced: false
+      responses:
+        "201":
+          description: Appointment created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/appointment"
+        "400":
+          description: Invalid data (e.g., end_time before start_time)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: User does not have permission (not manager/developer of project)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /projects/{projectId}/appointment/update:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    put:
+      tags: [Appointment Management, User]
+      summary: Update appointment data
+      description: >
+        Update an existing appointment. User must be manager or developer of the
+        project.
+      operationId: updateAppointment
+      security:
+        - api-key: []
+      parameters:
+        - $ref: "#/components/parameters/filterByTk"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/appointment"
+            examples:
+              updateTime:
+                summary: Update appointment time
+                value:
+                  start_time: "2024-01-15T11:00:00.000Z"
+                  end_time: "2024-01-15T12:00:00.000Z"
+      responses:
+        "200":
+          description: Appointment updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/appointment"
+        "400":
+          description: Invalid data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: User does not have permission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Appointment not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /projects/{projectId}/appointment/delete:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    delete:
+      tags: [Appointment Management, User]
+      summary: Delete an appointment
+      description: >
+        Delete an appointment with confirmation. User must be manager or
+        developer of the project.
+      operationId: deleteAppointment
+      security:
+        - api-key: []
+      parameters:
+        - $ref: "#/components/parameters/filterByTk"
+      responses:
+        "200":
+          description: Appointment deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      uuid:
+                        type: string
+                        format: uuid
+                      title:
+                        type: string
+                      deleted:
+                        type: boolean
+        "403":
+          description: User does not have permission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Appointment not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /projects/{projectId}/appointment/search:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [Appointment Management, User]
+      summary: Search and filter appointments of a project
+      description: >
+        Search/filter appointments within a project. Supports generic filter/sort/fields
+        parameters and optional full-text query `q` (e.g. title/description).
+        User must be manager or developer of the project.
+      operationId: searchAppointments
+      security:
+        - api-key: []
+      parameters:
+        - in: query
+          name: q
+          required: false
+          schema:
+            type: string
+          description: Full-text query against title/description (optional).
+        - $ref: "#/components/parameters/filter"
+        - $ref: "#/components/parameters/sort"
+        - $ref: "#/components/parameters/fields"
+      responses:
+        "200":
+          description: Filtered appointment list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/appointment"
+                  meta:
+                    type: object
+                    properties:
+                      count:
+                        type: integer
+                        description: Total count of appointments
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: User does not have permission (not manager/developer of project)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+
+  ###############################
+  # COMMENTING + SETTINGS API  #
+  ###############################
+
+  /projects/{projectId}/comments:
+    post:
+      tags: [Commenting plus Settings, User]
+      summary: Create a comment (public or private) on a project
+      description: >
+        Creates a new comment for the specified project. The user must be a
+        manager or developer of the project. Visibility of the comment
+        (public/private) is controlled via the `isPublic` property.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommentCreateRequest"
+      responses:
+        "201":
+          description: Comment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "400":
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Authentication required
+        "403":
+          description: User is not a manager or developer of the project
+        "404":
+          description: Project not found
+        "500":
+          description: Server error
+    get:
+      tags: [Commenting plus Settings, User]
+      summary: List comments of a project
+      description: >
+        Returns comments of the specified project in chronological order
+        (oldest first).
+
+        - Managers (or admins) can request `visibility=all` to see all comments
+          (public + private).
+        - Managers, developers, and admins can request `visibility=public`
+          to see only public comments.
+        - Managers (or admins) can request `visibility=private` to see only
+          private comments.
+
+        This endpoint covers use cases:
+        - 5.4.3 Display all comments of a project
+        - 5.4.4 Display public comments of a project
+        - 5.4.5 Filter displayed comments
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - in: query
+          name: visibility
+          schema:
+            type: string
+            enum: [all, public, private]
+            default: public
+          description: >
+            Filter comments by visibility:
+            - `all`: public and private
+            - `public`: public only
+            - `private`: private only
+      responses:
+        "200":
+          description: List of comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Comment"
+        "401":
+          description: Authentication required
+        "403":
+          description: User does not have permission to view requested comments
+        "404":
+          description: Project not found
+        "500":
+          description: Server error
+
+  /projects/{projectId}/comments/{commentId}:
+    get:
+      tags: [Commenting plus Settings, User]
+      summary: Get a single comment
+      description: >
+        Returns a single comment. Private comments are only visible
+        to their author, project managers, and admins.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/CommentId"
+      responses:
+        "200":
+          description: Comment found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "401":
+          description: Authentication required
+        "403":
+          description: Not allowed to view this comment
+        "404":
+          description: Comment or project not found
+        "500":
+          description: Server error
+    put:
+      tags: [Commenting plus Settings, User]
+      summary: Change own comment
+      description: >
+        Allows the author of a comment to change the text content and the
+        visibility (public/private). This implements use case 5.4.6.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/CommentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommentUpdateRequest"
+      responses:
+        "200":
+          description: Comment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "400":
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Authentication required
+        "403":
+          description: User is not the author of the comment
+        "404":
+          description: Comment or project not found
+        "500":
+          description: Server error
+    delete:
+      tags: [Commenting plus Settings, User]
+      summary: Delete own comment
+      description: >
+        Deletes a comment written by the currently authenticated user.
+        The user must confirm deletion in the UI; this endpoint represents the
+        final confirmed delete request (use case 5.4.7).
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/CommentId"
+      responses:
+        "204":
+          description: Comment deleted successfully (no content)
+        "401":
+          description: Authentication required
+        "403":
+          description: User is not the author of the comment
+        "404":
+          description: Comment or project not found
+        "500":
+          description: Server error
+
+  /projects/{projectId}/prompt:
+    post:
+      tags: [Commenting plus Settings, User]
+      summary: Directly communicate with the project
+      description: >
+        Responds to a question made by the user regarding the project at hand (use case 5.4.8).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GetProjectAwareAnswerRequest"
+      responses:
+        "200":
+          description: response created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProjectAwareAnswerResponse"
+        "400":
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Authentication required
+        "403":
+          description: User is not a manager of the project
+        "404":
+          description: Project not found
+        "500":
+          description: Server error
+
+  /settings/connection-monitor:
+    get:
+      tags: [Commenting plus Settings, User]
+      summary: Get current connection interrupt detection period
+      description: >
+        Returns the current period (in seconds) used to detect connection
+        interruptions (use case 5.5.1, read part).
+      responses:
+        "200":
+          description: Current connection monitor settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionMonitorSettings"
+        "401":
+          description: Authentication required
+        "500":
+          description: Server error
+    put:
+      tags: [Commenting plus Settings, User]
+      summary: Change the period for detecting connection interrupts
+      description: >
+        Updates the period (in seconds) used to detect connection interruptions
+        (use case 5.5.1). Any authenticated user may change it according to
+        the requirement specification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectionMonitorSettingsUpdate"
+      responses:
+        "200":
+          description: Period updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionMonitorSettings"
+        "400":
+          description: Invalid period value
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Authentication required
+        "500":
+          description: Server error
+
+  /projects/{projectId}/comments/search:
+    get:
+      tags: [Commenting plus Settings, User]
+      summary: Search and filter comments of a project
+      description: >
+        Search/filter comments within a project. Supports visibility filter and generic
+        filter/sort/fields parameters.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - in: query
+          name: visibility
+          schema:
+            type: string
+            enum: [all, public, private]
+            default: public
+        - in: query
+          name: q
+          required: false
+          schema:
+            type: string
+          description: Full-text query against comment content (optional).
+        - $ref: "#/components/parameters/filter"
+        - $ref: "#/components/parameters/fields"
+      responses:
+        "200":
+          description: Filtered comment list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Comment"
+        "401":
+          description: Authentication required
+        "403":
+          description: User does not have permission
+        "404":
+          description: Project not found
+        "500":
+          description: Server error
+
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    api-key:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      description: The target user's UUID
+      schema:
+        type: string
+        format: uuid
+
+    filter:
+      name: filter
+      in: query
+      required: false
+      description: Generic filter expression
+      schema:
+        type: string
+
+    sort:
+      name: sort
+      in: query
+      required: false
+      description: Sort expression
+      schema:
+        type: string
+
+    fields:
+      name: fields
+      in: query
+      required: false
+      description: Comma separated list of fields to select
+      schema:
+        type: string
+
+    appends:
+      name: appends
+      in: query
+      required: false
+      description: Extra relationships or attributes to append
+      schema:
+        type: string
+
+    except:
+      name: except
+      in: query
+      required: false
+      description: Fields to exclude
+      schema:
+        type: string
+
+    whitelist:
+      name: whitelist
+      in: query
+      required: false
+      description: Whitelisted fields for mass assignment
+      schema:
+        type: string
+
+    blacklist:
+      name: blacklist
+      in: query
+      required: false
+      description: Blacklisted fields for mass assignment
+      schema:
+        type: string
+
+    filterByTk:
+      name: id
+      in: query
+      required: false
+      description: Filter by primary key / token
+      schema:
+        type: integer
+        format: int64
+
+    ProjectId:
+      in: path
+      name: projectId
+      required: true
+      schema:
+        type: string
+      description: Unique identifier of the project
+
+    CommentId:
+      in: path
+      name: commentId
+      required: true
+      schema:
+        type: string
+      description: Unique identifier of the comment
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 1e7d3b2b-60f4-42db-a109-b4a894fa7d6a
+        email:
+          type: string
+          format: email
+          example: john@example.com
+        name:
+          type: string
+          example: John Doe
+        username:
+          type: string
+          example: johndoe
+        role:
+          type: string
+          enum: [user, manager, admin, end_user]
+          example: user
+        status:
+          type: string
+          enum: [active, deactivated, deleted, anonymized]
+          example: active
+        created_at:
+          type: string
+          format: date-time
+          example: 2025-01-12T09:30:00Z
+        updated_at:
+          type: string
+          format: date-time
+          example: 2025-11-13T15:20:00Z
+        firstName:
+          type: string
+          description: First name of the user
+        lastName:
+          type: string
+          description: Last name of the user
+      required: [id, email, username, role, status, created_at, updated_at]
+
+    MyAccountUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Hello World
+        username:
+          type: string
+          example: helloworld
+
+    MyPasswordChange:
+      type: object
+      description: Payload to change the authenticated user's password.
+      required: [current_password, new_password, confirm_new_password]
+      properties:
+        current_password:
+          type: string
+          format: password
+          example: OldPass123!
+          description: The user's current password.
+        new_password:
+          type: string
+          format: password
+          example: NewPass456!
+          description: The new password the user wants to set.
+        confirm_new_password:
+          type: string
+          format: password
+          example: NewPass456!
+          description: Must match new_password for confirmation.
+
+    AdminUserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          example: John Doe
+        username:
+          type: string
+          example: johndoe
+        email:
+          type: string
+          format: email
+          example: john@example.com
+        role:
+          type: string
+          enum: [user, manager, admin]
+          example: manager
+        status:
+          type: string
+          enum: [active, deactivated, deleted, anonymized]
+          example: active
+        new_password:
+          type: string
+          format: password
+          description: New password to set for the target user.
+        admin_password:
+          type: string
+          format: password
+          description: Admin's current password for security confirmation.
+
+    Error:
+      type: object
+      description: Standard error response
+      properties:
+        code:
+          type: string
+          example: UNAUTHORIZED
+        message:
+          type: string
+          example: Missing or invalid token
+        details:
+          type: string
+          nullable: true
+          example: "content must not be empty."
+
+    ProjectType:
+      type: string
+      enum:
+        - "bachelor’s thesis"
+        - "master’s thesis"
+        - "advanced internship"
+        - "project work"
+        - "seminar paper"
+        - "independent scientific work"
+      description: Type/category of the project.
+
+    ProjectStatus:
+      type: string
+      enum: [proposed, registered, evaluated, completed]
+      description: Current status of the project.
+
+    ProjectSummary:
+      type: object
+      required: [id, name, type, status, managerEmail]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+        type:
+          $ref: "#/components/schemas/ProjectType"
+        status:
+          $ref: "#/components/schemas/ProjectStatus"
+        managerEmail:
+          type: string
+          format: email
+
+    ProjectDetail:
+      type: object
+      required: [id, name, type, status, managers, developers]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+        type:
+          $ref: "#/components/schemas/ProjectType"
+        status:
+          $ref: "#/components/schemas/ProjectStatus"
+        description:
+          type: string
+        summary_ai:
+          type: string
+          description: Overview created by AI according to the last update on the project aggregate, this value is computed every time a change is commited to the project aggregate
+        general_sentiment_ai:
+          type: string
+          description: What do the majority of comments say about the project, this value is computed every time a change is commited to the comment list
+        managers:
+          type: array
+          items:
+            type: string
+            format: email
+        developers:
+          type: array
+          items:
+            type: string
+            format: email
+
+    ProjectInput:
+      type: object
+      required: [name, type, status, managers]
+      properties:
+        name:
+          type: string
+        type:
+          $ref: "#/components/schemas/ProjectType"
+        status:
+          $ref: "#/components/schemas/ProjectStatus"
+        description:
+          type: string
+        managers:
+          type: array
+          items:
+            type: string
+            format: email
+        developers:
+          type: array
+          items:
+            type: string
+            format: email
+
+    appointment:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdById:
+          type: integer
+          format: int64
+        updatedById:
+          type: integer
+          format: int64
+        title:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        project_id:
+          type: string
+        calendar_synced:
+          type: string
+
+    Comment:
+      type: object
+      description: A comment on a project
+      properties:
+        id:
+          type: string
+          example: "cmt-1234"
+        projectId:
+          type: string
+          example: "proj-1"
+        authorId:
+          type: string
+          example: "user-42"
+        authorName:
+          type: string
+          example: "Alice Example"
+        content:
+          type: string
+          example: "We should update the requirements by Friday."
+        isPublic:
+          type: boolean
+          description: >
+            If true, the comment is publicly visible to authorized users.
+            If false, it is private.
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-10-17T09:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2025-10-18T10:15:00Z"
+      required: [id, projectId, authorId, authorName, content, isPublic, createdAt]
+
+    CommentCreateRequest:
+      type: object
+      description: Payload for creating a comment
+      properties:
+        content:
+          type: string
+          minLength: 1
+          example: "This is a public comment."
+        isPublic:
+          type: boolean
+          description: >
+            Set to true for a public comment, false for a private comment.
+          example: true
+      required: [content, isPublic]
+
+    CommentUpdateRequest:
+      type: object
+      description: >
+        Payload for updating a comment. Both `content` and `isPublic`
+        are optional; only the provided fields will be changed.
+      properties:
+        content:
+          type: string
+          minLength: 1
+          example: "Updated comment text."
+        isPublic:
+          type: boolean
+          example: false
+
+    GetProjectAwareAnswerRequest:
+      type: object
+      description: Request to get a context aware answer from AI based on the prompt
+      properties:
+        prompt:
+          type: string
+          description: the question to be asked about the project
+          example: What do the users whose names start with N think of the project and when is the deadline?
+
+    GetProjectAwareAnswerResponse:
+      type: object
+      description: Response retrieved from LLM based on the project context and in answer to the user's prompt
+      properties:
+        projectId:
+          type: string
+          example: "proj-1"
+        generatedAt:
+          type: string
+          format: date-time
+          example: "2025-10-17T11:00:00Z"
+        answer:
+          type: string
+          description: >
+            Human-readable analysis report text to display to the user.
+          example: >
+            Overall sentiment is neutral to slightly negative. Repeated
+            concerns about unclear requirements may indicate potential
+            issues, and comments from the last week suggest deadline risks.
+
+    CommentAnalysisRequest:
+      type: object
+      description: Request to analyze comments of a project
+      properties:
+        analysisType:
+          type: string
+          enum: [summary, issuePrediction, deadlineRiskPrediction]
+          description: >
+            Type of analysis to perform:
+            - summary: summary of all comments
+            - issuePrediction: detect potential issues
+            - deadlineRiskPrediction: detect deadline risks
+          example: summary
+      required: [analysisType]
+
+    CommentAnalysisResponse:
+      type: object
+      description: Result of the AI-based comment analysis
+      properties:
+        projectId:
+          type: string
+          example: "proj-1"
+        analysisType:
+          type: string
+          enum: [summary, issuePrediction, deadlineRiskPrediction]
+        generatedAt:
+          type: string
+          format: date-time
+          example: "2025-10-17T11:00:00Z"
+        report:
+          type: string
+          description: >
+            Human-readable analysis report text to display to the user.
+          example: >
+            Overall sentiment is neutral to slightly negative. Repeated
+            concerns about unclear requirements may indicate potential
+            issues, and comments from the last week suggest deadline risks.
+
+    ConnectionMonitorSettings:
+      type: object
+      description: Current settings for detecting connection interruptions
+      properties:
+        periodSeconds:
+          type: integer
+          minimum: 1
+          description: Time period in seconds used to detect connection interruptions.
+          example: 30
+      required: [periodSeconds]
+
+    ConnectionMonitorSettingsUpdate:
+      type: object
+      description: New value for the connection interruption detection period
+      properties:
+        periodSeconds:
+          type: integer
+          minimum: 1
+          example: 60
+      required: [periodSeconds]
