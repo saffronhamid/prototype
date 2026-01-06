@@ -9,7 +9,7 @@ function safeUser(u) {
   return rest;
 }
 
-// GET /users/me  ✅ YAML
+// GET /users/me ✅ YAML
 router.get("/", requireAuth, (req, res) => {
   const me = users.find((u) => u.id === req.user.id);
   if (!me) return res.status(404).json({ message: "User not found" });
