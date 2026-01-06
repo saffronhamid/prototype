@@ -41,10 +41,17 @@ const projects = [
   },
 ];
 
+// ---------------- PROJECT MEMBERS ----------------
 // who belongs to which project + role in project
 const projectMembers = [
   { projectId: "p1", userId: "u2", projectRole: "DEVELOPER" }, // dev user in p1
   { projectId: "p2", userId: "u2", projectRole: "MANAGER" },   // dev user manager in p2
 ];
 
-module.exports = { users, projects, projectMembers };
+// ---------------- INVITATIONS ----------------
+// used by: POST /users/invite  and POST /auth/accept-invitation
+// shape:
+// { id, email, role: "admin"|"end_user", projectId|null, status: "PENDING"|"ACCEPTED", createdAt, acceptedAt }
+const invitations = [];
+
+module.exports = { users, projects, projectMembers, invitations };

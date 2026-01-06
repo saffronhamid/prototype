@@ -4,16 +4,23 @@ const express = require("express");
 const cors = require("cors");
 
 const authRoutes = require("./routes/auth.routes");
-const projectsRoutes = require("./routes/projects.routes"); // ✅ ADD THIS
+const projectsRoutes = require("./routes/projects.routes"); 
+const usersRoutes = require("./routes/users.routes");
+const profileRoutes = require("./routes/profile.routes");
+
+const changePasswordRoutes = require("./routes/changePassword.routes");
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ type: ["application/json", "application/merge-patch+json"] }));
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 
 app.use("/auth", authRoutes);
 app.use("/projects", projectsRoutes); // ✅ ADD THIS
+app.use("/users", usersRoutes);
+app.use("/profile", profileRoutes);
+app.use("/profile/change-password", changePasswordRoutes);
 
 const port = process.env.PORT || 3001;
 
