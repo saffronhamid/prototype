@@ -60,3 +60,8 @@ module.exports = { users, projects, projectMembers, invitations };
 // { id, projectId, title, startAt, endAt, location, notes, createdBy, createdAt, updatedAt }
 const appointments = [];
 module.exports = { users, projects, projectMembers, invitations, appointments };
+// ---------------- COMMENTS ----------------
+// shape:
+// { id, projectId, text, createdBy, createdAt, updatedAt }
+const comments = [];
+module.exports = { users, projects, projectMembers, invitations, appointments, comments };
