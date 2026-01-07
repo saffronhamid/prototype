@@ -1,3 +1,8 @@
+/**
+ * Main application entry point.
+ * Configures Express, middleware, and routes.
+ * Starts the server.
+ */
 console.log("SERVER FILE LOADED");
 require("dotenv").config();
 const express = require("express");
@@ -10,6 +15,8 @@ const profileRoutes = require("./routes/profile.routes");
 const usersMeRoutes = require("./routes/users.me.routes");
 const updateProfileRoutes = require("./routes/updateProfile.routes");
 const changePasswordRoutes = require("./routes/changePassword.routes");
+const usersByIdRoutes = require("./routes/users.byId.routes");
+const usersAnonymizeRoutes = require("./routes/users.anonymize.routes");
 
 const app = express();
 app.use(cors());
@@ -24,6 +31,8 @@ app.use("/profile", profileRoutes);
 app.use("/profile/change-password", changePasswordRoutes);
 app.use("/users/me", usersMeRoutes);
 app.use("/update-profile", updateProfileRoutes);
+app.use("/users", usersByIdRoutes);       // /users/:user_id
+app.use("/users", usersAnonymizeRoutes);  // /users/:user_id/anonymize
 const port = process.env.PORT || 3001;
 
 app.listen(port, () => {

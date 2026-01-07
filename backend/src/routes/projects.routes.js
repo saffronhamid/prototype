@@ -15,7 +15,15 @@ router.get("/", requireAuth, requireRole("ADMIN"), (req, res) => {
 // GET /projects/mine  ✅ YAML
 // NOTE: must be BEFORE "/:id"
 // -------------------------------
+// GET /projects/mine ✅ YAML
 router.get("/mine", requireAuth, (req, res) => {
+  // For this prototype:
+  // - END_USER: return only projects where user is a member
+  // - ADMIN: return all projects (easy for testing)
+  if (req.user.role === "ADMIN") {
+    return res.json(projects);
+  }
+
   const myProjectIds = new Set(
     projectMembers
       .filter((m) => m.userId === req.user.id)
@@ -24,6 +32,68 @@ router.get("/mine", requireAuth, (req, res) => {
 
   const myProjects = projects.filter((p) => myProjectIds.has(p.id));
   return res.json(myProjects);
+});
+
+// GET /projects/search?query=... ✅ YAML
+router.get("/search", requireAuth, (req, res) => {
+  const q = String(req.query.query || "").trim().toLowerCase();
+  if (!q) return res.status(400).json({ message: "query is required" });
+
+  // Determine accessible projects
+  let accessible = projects;
+
+  if (req.user.role !== "ADMIN") {
+    const myProjectIds = new Set(
+      projectMembers
+        .filter((m) => m.userId === req.user.id)
+        .map((m) => m.projectId)
+    );
+    accessible = projects.filter((p) => myProjectIds.has(p.id));
+  }
+
+  const results = accessible.filter((p) => {
+    const name = (p.name || "").toLowerCase();
+    const desc = (p.description || "").toLowerCase();
+    return name.includes(q) || desc.includes(q);
+  });
+
+  return res.json(results);
+});
+// GET /projects/:projectId/analysis ✅ YAML
+router.get("/:projectId/analysis", requireAuth, (req, res) => {
+  const project = projects.find((p) => p.id === req.params.projectId);
+  if (!project) return res.status(404).json({ message: "Project not found" });
+
+  // ADMIN can access all
+  if (req.user.role === "ADMIN") {
+    return res.json({
+      projectId: project.id,
+      summary: "Prototype analysis",
+      metrics: {
+        members: projectMembers.filter((m) => m.projectId === project.id).length,
+        status: project.status,
+        type: project.type,
+      },
+      generatedAt: new Date().toISOString(),
+    });
+  }
+
+  // End users: must be a member
+  const isMember = projectMembers.some(
+    (m) => m.projectId === project.id && m.userId === req.user.id
+  );
+  if (!isMember) return res.status(403).json({ message: "Forbidden" });
+
+  return res.json({
+    projectId: project.id,
+    summary: "Prototype analysis",
+    metrics: {
+      members: projectMembers.filter((m) => m.projectId === project.id).length,
+      status: project.status,
+      type: project.type,
+    },
+    generatedAt: new Date().toISOString(),
+  });
 });
 
 // -------------------------------

@@ -2,11 +2,24 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const { users } = require("../db/inMemory");
 
+/**
+ * Removes sensitive information (passwordHash) from the user object.
+ * @param {Object} u - The user object from the database.
+ * @returns {Object} The user object without the passwordHash.
+ */
 function safeUser(u) {
   const { passwordHash, ...rest } = u;
   return rest;
 }
 
+/**
+ * Handles user login.
+ * Verifies credentials and issues a JWT token if successful.
+ *
+ * @param {import('express').Request} req - The Express request object.
+ * @param {import('express').Response} res - The Express response object.
+ * @returns {Promise<void>}
+ */
 async function login(req, res) {
   try {
     const { identifier, password } = req.body;
