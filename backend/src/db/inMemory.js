@@ -55,3 +55,8 @@ const projectMembers = [
 const invitations = [];
 
 module.exports = { users, projects, projectMembers, invitations };
+// ---------------- APPOINTMENTS ----------------
+// shape:
+// { id, projectId, title, startAt, endAt, location, notes, createdBy, createdAt, updatedAt }
+const appointments = [];
+module.exports = { users, projects, projectMembers, invitations, appointments };

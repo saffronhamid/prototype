@@ -17,6 +17,7 @@ const updateProfileRoutes = require("./routes/updateProfile.routes");
 const changePasswordRoutes = require("./routes/changePassword.routes");
 const usersByIdRoutes = require("./routes/users.byId.routes");
 const usersAnonymizeRoutes = require("./routes/users.anonymize.routes");
+const appointmentsRoutes = require("./routes/appointments.routes");
 
 const app = express();
 app.use(cors());
@@ -33,6 +34,8 @@ app.use("/users/me", usersMeRoutes);
 app.use("/update-profile", updateProfileRoutes);
 app.use("/users", usersByIdRoutes);       // /users/:user_id
 app.use("/users", usersAnonymizeRoutes);  // /users/:user_id/anonymize
+app.use("/projects", appointmentsRoutes);
+
 const port = process.env.PORT || 3001;
 
 app.listen(port, () => {
