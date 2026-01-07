@@ -3,6 +3,10 @@
  * Configures Express, middleware, and routes.
  * Starts the server.
  */
+const swaggerUi = require("swagger-ui-express");
+const YAML = require("yamljs");
+const path = require("path");
+
 console.log("SERVER FILE LOADED");
 require("dotenv").config();
 const express = require("express");
@@ -18,6 +22,7 @@ const changePasswordRoutes = require("./routes/changePassword.routes");
 const usersByIdRoutes = require("./routes/users.byId.routes");
 const usersAnonymizeRoutes = require("./routes/users.anonymize.routes");
 const appointmentsRoutes = require("./routes/appointments.routes");
+const commentsRoutes = require("./routes/comments.routes");
 
 const app = express();
 app.use(cors());
@@ -35,9 +40,13 @@ app.use("/update-profile", updateProfileRoutes);
 app.use("/users", usersByIdRoutes);       // /users/:user_id
 app.use("/users", usersAnonymizeRoutes);  // /users/:user_id/anonymize
 app.use("/projects", appointmentsRoutes);
+app.use("/projects", commentsRoutes);
 
 const port = process.env.PORT || 3001;
-
+const swaggerDocument = YAML.load(
+  path.join(__dirname, "../docs/api/openapi.yaml")
+);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.listen(port, () => {
   console.log(`API running on http://localhost:${port}`);
 });
