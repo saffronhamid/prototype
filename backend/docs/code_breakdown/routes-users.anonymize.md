@@ -23,27 +23,12 @@ The purpose of this file is to handle the `POST /users/:user_id/anonymize` reque
 ### Route Definition: `POST /:user_id/anonymize`
 The full path is `/users/:user_id/anonymize` because `server.js` mounts this router at `/users`.
 
-*   **Code:**
-    ```javascript
-    router.post("/:user_id/anonymize", requireAuth, requireRole("ADMIN"), (req, res) => {
-      const u = users.find((x) => x.id === req.params.user_id);
-      if (!u) return res.status(404).json({ message: "User not found" });
-
-      // Prototype anonymization
-      u.username = `anonymized_${u.id}`;
-      u.email = `anonymized_${u.id}@example.com`;
-      u.firstName = "Anonymized";
-      u.lastName = "User";
-
-      return res.json({ message: "User anonymized" });
-    });
-    ```
 *   **Explanation:**
-    1.  **`router.post(...)`**: Defines the handler for this specific `POST` action.
-    2.  **`requireAuth, requireRole("ADMIN")`**: A chain of middleware that first verifies the user is logged in, then verifies they are an `ADMIN`. This is a critical security gate.
-    3.  **`req.params.user_id`**: It gets the ID of the user to be anonymized from the URL.
+    1.  `router.post(...)`: Defines the handler for this specific `POST` action.
+    2.  `requireAuth, requireRole("ADMIN")`: A chain of middleware that first verifies the user is logged in, then verifies they are an `ADMIN`.
+    3.  `req.params.user_id`: It gets the ID of the user to be anonymized from the URL.
     4.  **Find User**: It finds the user in the `users` array. If not found, it returns a `404`.
-    5.  **Anonymization Logic**: It overwrites the user's `username`, `email`, `firstName`, and `lastName` with generic, non-identifiable values. The original user ID is preserved.
+    5.  **Anonymization Logic**: It overwrites the user's `username`, `email`, `firstName`, and `lastName` with generic, non-identifiable values.
     6.  **Return Success**: It returns a `200 OK` with a confirmation message.
 
 *   **OpenAPI Connection:**

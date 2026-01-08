@@ -1,0 +1,76 @@
+@startuml
+!theme vibrant
+
+title Backend Architecture Component Diagram
+
+skinparam componentStyle uml2
+skinparam rectangle {
+  shadowing false
+  BorderColor #505050
+}
+skinparam database {
+  BorderColor #505050
+}
+
+package "Client" {
+  [Web Browser / API Client] as Client
+}
+
+package "Backend Application" {
+  [server.js] as Server
+
+  package "Routes" {
+    [auth.routes.js] as AuthRoutes
+    [users.*.routes.js] as UserRoutes
+    [projects.routes.js] as ProjectRoutes
+    [appointments.routes.js] as AppointmentRoutes
+    [comments.routes.js] as CommentRoutes
+    [settings.routes.js] as SettingsRoutes
+  }
+
+  package "Middleware" {
+    [auth.js] as AuthMiddleware
+    [projectAccess.js] as ProjectAccessMiddleware
+  }
+
+  package "Controllers" {
+    [auth.controller.js] as AuthController
+    [invitations.controller.js] as InvitationController
+  }
+
+  database "In-Memory DB" as DB {
+    [inMemory.js] as InMemoryDB
+  }
+}
+
+' --- Relationships ---
+
+Client --> Server : HTTP Request
+
+Server --> AuthRoutes : /auth
+Server --> UserRoutes : /users
+Server --> ProjectRoutes : /projects
+Server --> AppointmentRoutes : /projects
+Server --> CommentRoutes : /projects
+Server --> SettingsRoutes : /settings
+
+AuthRoutes --> AuthController
+UserRoutes --> InvitationController
+
+' Middleware is used by Routes
+ProjectRoutes ..> AuthMiddleware : uses
+UserRoutes ..> AuthMiddleware : uses
+AppointmentRoutes ..> AuthMiddleware : uses
+SettingsRoutes ..> AuthMiddleware : uses
+ProjectRoutes ..> ProjectAccessMiddleware : uses
+
+' Controllers use the Database
+AuthController ..> InMemoryDB : reads users
+InvitationController ..> InMemoryDB : reads/writes invitations
+' Routes with inline logic also use the Database
+ProjectRoutes ..> InMemoryDB : reads/writes projects
+AppointmentRoutes ..> InMemoryDB : reads/writes appointments
+CommentRoutes ..> InMemoryDB : reads/writes comments
+SettingsRoutes ..> InMemoryDB : reads/writes settings
+
+@enduml

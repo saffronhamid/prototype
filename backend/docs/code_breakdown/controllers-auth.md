@@ -38,34 +38,21 @@ The primary purpose of this controller is to implement the logic for the `POST /
 ### `login(req, res)`
 This is the main controller function for handling a login attempt.
 
-*   **Code:**
-    ```javascript
-    async function login(req, res) {
-      try {
-        // ...
-      } catch (err) {
-        // ...
-      }
-    }
-    ```
 *   **Explanation:**
-    1.  **`try...catch` block**: This is good practice for `async` functions. If any `await` operation fails or another unexpected error occurs, the `catch` block will prevent the server from crashing and send a generic `500 Server error` response.
+    1.  **`try...catch` block**: If any unexpected error occurs, the `catch` block will prevent the server from crashing and send a generic `500 Server error` response.
     2.  **Input Validation**: It checks that `identifier` and `password` were actually sent in the request body.
     3.  **User Lookup**: `users.find(...)` searches the database for a user whose `username` or `email` matches the provided `identifier`.
-    4.  **Credential Check**: `await bcrypt.compare(password, user.passwordHash)` is the key security step. It safely compares the plain-text password from the user with the stored hash. It returns `true` if they match. **It never decrypts the hash.**
-    5.  **Token Generation**: `jwt.sign(...)` creates the token.
-        *   **Payload**: `{ sub: user.id, role: user.role }`. This is the data we are embedding in the token. `sub` (subject) is a standard claim for the user's ID.
-        *   **Secret**: `process.env.JWT_SECRET`. The secret key used to sign the token, proving that we are the ones who issued it.
-        *   **Options**: `{ expiresIn: "2h" }`. This token will automatically become invalid after 2 hours.
+    4.  **Credential Check**: `await bcrypt.compare(password, user.passwordHash)` is the key security step. It safely compares the plain-text password from the user with the stored hash. It returns `true` if they match.
+    5.  **Token Generation**: `jwt.sign(...)` creates the token, embedding the user's ID and role in the payload. It is signed with the `JWT_SECRET` and set to expire in 2 hours.
     6.  **Success Response**: It returns a `200 OK` response with the `token` and the "safe" user object.
 
 *   **OpenAPI Connection**:
     *   **Path:** `paths./auth/login.post`
     *   **Summary:** `Log in with username or email and password`
     *   **Implementation:** This function is the direct implementation of that endpoint.
-        *   The `requestBody` schema (requiring `identifier` and `password`) is validated at the top of the function.
+        *   The `requestBody` schema is validated at the top of the function.
         *   The `400`, `401`, and `500` error responses are all handled within the function's logic.
-        *   The `200` success response, which returns a `{ token, user }` object, perfectly matches the schema defined in the YAML. The `user` part of the response corresponds to the `User` schema.
+        *   The `200` success response, which returns a `{ token, user }` object, perfectly matches the schema defined in the YAML.
 
 ---
 

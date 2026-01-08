@@ -32,36 +32,27 @@ This modular approach keeps the main `users.routes.js` file cleaner.
 ```javascript
 router.use(requireAuth, requireRole("ADMIN"));
 ```
-*   **Explanation**: This is a powerful feature of Express. `router.use()` applies these middleware functions to **every single route** defined in this file. This is a concise way to protect an entire module of routes without repeating the middleware on each one.
+*   **Explanation**: This applies the `requireAuth` and `requireRole("ADMIN")` middleware to **every single route** defined in this file, ensuring only admins can access them.
 
 ### `GET /users/:user_id`
-*   **Code**: `router.get("/:user_id", ...)`
-*   **Explanation**: Finds a user by their ID from `req.params.user_id` and returns their data (after cleaning with `safeUser`).
+*   **Explanation**: Finds a user by their ID and returns their data.
 *   **OpenAPI Connection**:
     *   **Path**: `paths./users/{user_id}.get`
-    *   **Summary**: `Display details of user account (Just Admins)`
-    *   **Implementation**: This route directly implements the endpoint, with security handled by the global `router.use()`.
+    *   **Implementation**: Directly implements the endpoint, with security handled by the global `router.use()`.
 
 ### `PATCH /users/:user_id`
-*   **Code**: `router.patch("/:user_id", ...)`
-*   **Explanation**: An admin-only version of "update profile." It allows an admin to change another user's `username`, `firstName`, `lastName`, and `role`. It includes validation for each field.
+*   **Explanation**: An admin-only endpoint to partially update another user's `username`, `firstName`, `lastName`, and `role`.
 *   **OpenAPI Connection**:
-    *   **Path**: `paths./users/{user_id}.put`. The YAML uses `PUT`, while the code uses `PATCH`. `PATCH` is more appropriate as it's a partial update.
-    *   **Summary**: `Update another user's account (Just Admins)`
-    *   **Implementation**: The code allows an admin to update user fields from the `req.body`, matching the intent of the `AdminUserUpdate` schema in the YAML.
+    *   **Path**: `paths./users/{user_id}.put`. (Note: YAML uses `PUT`, code uses `PATCH`).
+    *   **Implementation**: Allows an admin to update user fields from the `req.body`, matching the intent of the `AdminUserUpdate` schema.
 
 ### `DELETE /users/:user_id`
-*   **Code**: `router.delete("/:user_id", ...)`
-*   **Explanation**:
-    1.  Finds the user's index in the `users` array.
-    2.  Prevents an admin from deleting their own account.
-    3.  As a cleanup step, it iterates through `projectMembers` and removes any memberships associated with the deleted user.
-    4.  `users.splice(idx, 1)` removes the user from the database array.
-    5.  Returns a `204 No Content` success response.
+*   **Explanation**: Deletes a user from the `users` array and also cleans up their memberships from the `projectMembers` array.
 *   **OpenAPI Connection**:
     *   **Path**: `paths./users/{user_id}.delete`
-    *   **Summary**: `Delete a user account (Just Admins)`
     *   **Implementation**: This route directly implements the delete functionality, including the `204` success response and security checks.
+
+---
 
 ### Module Export
 ```javascript

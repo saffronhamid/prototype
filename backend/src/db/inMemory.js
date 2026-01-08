@@ -1,5 +1,12 @@
 const bcrypt = require("bcrypt");
 
+// ---------------- SETTINGS ----------------
+const connectionMonitorSettings = {
+  enabled: true,
+  intervalSeconds: 60,
+  notifyOnDisconnect: true,
+};
+
 // ---------------- USERS ----------------
 // prototype users (password = "Test1234!")
 const users = [
@@ -42,26 +49,27 @@ const projects = [
 ];
 
 // ---------------- PROJECT MEMBERS ----------------
-// who belongs to which project + role in project
 const projectMembers = [
   { projectId: "p1", userId: "u2", projectRole: "DEVELOPER" }, // dev user in p1
   { projectId: "p2", userId: "u2", projectRole: "MANAGER" },   // dev user manager in p2
 ];
 
 // ---------------- INVITATIONS ----------------
-// used by: POST /users/invite  and POST /auth/accept-invitation
-// shape:
-// { id, email, role: "admin"|"end_user", projectId|null, status: "PENDING"|"ACCEPTED", createdAt, acceptedAt }
 const invitations = [];
 
-module.exports = { users, projects, projectMembers, invitations };
 // ---------------- APPOINTMENTS ----------------
-// shape:
-// { id, projectId, title, startAt, endAt, location, notes, createdBy, createdAt, updatedAt }
 const appointments = [];
-module.exports = { users, projects, projectMembers, invitations, appointments };
+
 // ---------------- COMMENTS ----------------
-// shape:
-// { id, projectId, text, createdBy, createdAt, updatedAt }
 const comments = [];
-module.exports = { users, projects, projectMembers, invitations, appointments, comments };
+
+// This must be at the end of the file
+module.exports = {
+  users,
+  projects,
+  projectMembers,
+  invitations,
+  appointments,
+  comments,
+  connectionMonitorSettings,
+};

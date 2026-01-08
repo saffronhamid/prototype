@@ -23,13 +23,6 @@ It is mounted at `/profile` in `server.js`.
 ## 3. Code Breakdown & OpenAPI Connections
 
 ### `safeUser(u)`
-*   **Code:**
-    ```javascript
-    function safeUser(u) {
-      const { passwordHash, ...rest } = u;
-      return rest;
-    }
-    ```
 *   **Explanation:** A helper function to strip the `passwordHash` from the user object before sending it to the client, which is a critical security measure.
 
 ### Route Definition: `GET /`
@@ -44,8 +37,8 @@ The full path is `/profile` as defined in `server.js`.
     });
     ```
 *   **Explanation:**
-    1.  **`router.get("/")`**: Defines a `GET` request handler for the root of this router.
-    2.  **`requireAuth`**: This middleware runs first, authenticating the user via their JWT and attaching their info to `req.user`.
+    1.  `router.get("/")`: Defines a `GET` request handler for the root of this router.
+    2.  `requireAuth`: This middleware runs first, authenticating the user via their JWT and attaching their info to `req.user`.
     3.  **Find User**: It uses the ID from the token (`req.user.id`) to find the corresponding user in the `users` array.
     4.  **Error Handling**: If for some reason the user from the token doesn't exist in the database, it returns a `404 Not Found`.
     5.  **Return User**: It calls `safeUser()` to remove the password hash and then returns the cleaned user object as a JSON response.
@@ -56,7 +49,7 @@ The full path is `/profile` as defined in `server.js`.
     *   **Implementation:**
         *   This route directly implements the endpoint.
         *   The security is handled by `requireAuth`, matching the spec.
-        *   The `200` success response returns a user object that corresponds to the `User` schema defined in `components/schemas/User`. The `safeUser` function ensures the returned object matches this public schema.
+        *   The `200` success response returns a user object that corresponds to the `User` schema defined in `components/schemas/User`.
         *   The `401` error is handled by the `requireAuth` middleware.
 
 ### Module Export

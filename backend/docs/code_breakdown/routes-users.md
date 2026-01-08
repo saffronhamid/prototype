@@ -45,15 +45,16 @@ It acts as the main router for the `/users` path and delegates more specific act
 ### `GET /users`
 *   **Code**: `router.get("/", requireAuth, requireRole("ADMIN"), (req, res) => { ... });`
 *   **Explanation**:
-    1.  This is the handler for the root `/users` path. It's for listing all users.
+    1.  This is the handler for the root `/users` path, for listing all users.
     2.  It is protected to be `ADMIN` only.
     3.  It supports an optional `search` query parameter (e.g., `/users?search=john`).
     4.  If a search term is provided, it filters the list of users to find matches in `username` or `email`.
-    5.  It maps over the results with `safeUser` to ensure no password hashes are sent.
 *   **OpenAPI Connection**:
     *   **Path**: `paths./users.get`
     *   **Summary**: `Get all users (optionally filtered)`
     *   **Implementation**: This route directly implements the endpoint. The `search` query parameter is handled, the `ADMIN` only restriction is enforced, and the response is an array of `User` objects, matching the spec.
+
+---
 
 ### Module Export
 ```javascript

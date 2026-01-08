@@ -33,34 +33,27 @@ The primary purpose of this file is to handle the logic for the `POST /auth/acce
       return yamlRole === "admin" ? "ADMIN" : "END_USER";
     }
     ```
-*   **Explanation:** A simple helper function to translate the role string from the API/YAML (`"admin"`) to the internal representation used in the database (`"ADMIN"`).
+*   **Explanation:** A helper function to translate the role string from the API/YAML (`"admin"`) to the internal representation used in the database (`"ADMIN"`).
 
 ### `acceptInvitation(req, res)`
 This is the main controller function.
 
-*   **Code:**
-    ```javascript
-    async function acceptInvitation(req, res) {
-      // ...
-    }
-    ```
 *   **Explanation:**
-    1.  **Destructure `req.body`**: It pulls all the required fields from the request body.
-    2.  **Input Validation**: It checks if all required fields were provided. If not, it returns a `400 Bad Request` error.
-    3.  **Invitation Check**: It finds the invitation in the `invitations` array. It returns a `404 Not Found` if the ID is invalid, or a `400 Bad Request` if the invitation has already been used.
-    4.  **Uniqueness Checks**: It ensures the chosen `username` and the invitation's `email` are not already registered in the `users` array. This prevents duplicate accounts.
-    5.  **Password Hashing**: `await bcrypt.hash(password, 10)` securely hashes the user's new password. The `await` keyword pauses the function until the hashing is complete.
-    6.  **Create New User**: It constructs a `newUser` object and pushes it to the `users` array.
-    7.  **Add Project Membership**: If the invitation included a `projectId`, it automatically adds the new user to that project by creating a `projectMembers` record.
-    8.  **Update Invitation Status**: It marks the invitation as `ACCEPTED` and records the timestamp. This prevents it from being used again.
-    9.  **Return Success Response**: It returns a `201 Created` status with a success message and the new user's ID.
+    1.  **Input Validation**: It checks if all required fields (`invitationId`, `username`, etc.) were provided in the request body.
+    2.  **Invitation Check**: It finds the invitation in the `invitations` array. It returns a `404 Not Found` if the ID is invalid, or a `400 Bad Request` if the invitation has already been used.
+    3.  **Uniqueness Checks**: It ensures the chosen `username` and the invitation's `email` are not already registered in the `users` array.
+    4.  **Password Hashing**: `await bcrypt.hash(password, 10)` securely hashes the user's new password.
+    5.  **Create New User**: It constructs a `newUser` object and pushes it to the `users` array.
+    6.  **Add Project Membership**: If the invitation included a `projectId`, it automatically adds the new user to that project.
+    7.  **Update Invitation Status**: It marks the invitation as `ACCEPTED` to prevent reuse.
+    8.  **Return Success Response**: It returns a `201 Created` status with a success message.
 
 *   **OpenAPI Connection**:
     *   **Path:** `paths./auth/accept-invitation.post`
     *   **Summary:** `Create an account using an invitation`
     *   **Implementation:** This function is the direct implementation of that endpoint.
-        *   The `requestBody` schema in OpenAPI (requiring `invitationId`, `username`, `password`, etc.) is validated at the top of the function.
-        *   The `400`, `404`, and `201` responses defined in the YAML are all returned by this function based on the logic's outcome.
+        *   The `requestBody` schema in OpenAPI is validated at the top of the function.
+        *   The `400`, `404`, and `201` responses defined in the YAML are all returned by this function's logic.
         *   The returned JSON `{ message, userId }` perfectly matches the `201` response schema in the YAML.
 
 ---
@@ -69,4 +62,4 @@ This is the main controller function.
 ```javascript
 module.exports = { acceptInvitation };
 ```
-*   This exposes the controller function so it can be imported and used by `auth.routes.js`.
+*   This exposes the controller function so it can be imported by `auth.routes.js`.

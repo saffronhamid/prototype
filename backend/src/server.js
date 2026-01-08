@@ -23,6 +23,7 @@ const usersByIdRoutes = require("./routes/users.byId.routes");
 const usersAnonymizeRoutes = require("./routes/users.anonymize.routes");
 const appointmentsRoutes = require("./routes/appointments.routes");
 const commentsRoutes = require("./routes/comments.routes");
+const settingsRoutes = require("./routes/settings.routes");
 
 const app = express();
 app.use(cors());
@@ -42,6 +43,7 @@ app.use("/users", usersAnonymizeRoutes);  // /users/:user_id/anonymize
 app.use("/projects", appointmentsRoutes);
 app.use("/projects", commentsRoutes);
 
+app.use("/settings", settingsRoutes);
 const port = process.env.PORT || 3001;
 const swaggerDocument = YAML.load(
   path.join(__dirname, "../docs/api/openapi.yaml")

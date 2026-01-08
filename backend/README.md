@@ -1,38 +1,46 @@
 # Backend API Prototype - Detailed Documentation
 
-This repository contains a Node.js and Express.js backend application designed as a prototype for a user and project management system. It demonstrates secure authentication, role-based access control (RBAC), and modular API architecture without requiring an external database (using in-memory data structures).
+This repository contains a Node.js and Express.js backend application designed as a prototype for a user and project management system. It demonstrates secure authentication, role-based access control (RBAC), and a modular API architecture using an in-memory data store.
 
 ## Table of Contents
 
 1.  [Project Overview](#project-overview)
-2.  [Directory Structure](#directory-structure)
-3.  [Detailed File Analysis](#detailed-file-analysis)
-    *   [Configuration & Entry Point](#configuration--entry-point)
-    *   [Database Layer](#database-layer-srcdb)
-    *   [Middleware Layer](#middleware-layer-srcmiddleware)
-    *   [Controllers Layer](#controllers-layer-srccontrollers)
-    *   [Routes Layer](#routes-layer-srcroutes)
+2.  [Architecture Diagram](#architecture-diagram)
+3.  [Directory Structure](#directory-structure)
 4.  [Key Data Flows](#key-data-flows)
-5.  [Setup & usage](#setup--usage)
+5.  [API Features](#api-features)
+6.  [Setup & Usage](#setup--usage)
+7.  [Detailed Documentation](#detailed-documentation)
 
 ---
 
 ## Project Overview
 
 The application simulates a real-world backend with the following core capabilities:
-*   **Users & Auth**: Users can login, view profiles, and update details.
-*   **Projects**: Users belong to projects with specific roles (e.g., `MANAGER`, `DEVELOPER`).
-*   **Security**: Uses JWT (JSON Web Tokens) for stateless authentication.
-*   **Architecture**: Follows a standard Model-Controller-Route pattern, though optimized for a prototype (in-memory data).
+*   **Users & Auth**: JWT-based login, user invitations, profile management, and admin controls.
+*   **Projects**: Creation and management of projects.
+*   **Role-Based Access**: System-level roles (`ADMIN` vs `END_USER`) and project-level roles (`MANAGER` vs `DEVELOPER`).
+*   **Project Features**: Management of **Appointments** and **Comments** within projects.
+*   **Settings**: A simple module for managing application settings.
+*   **Architecture**: Follows a standard Controller-Route pattern, with an in-memory database for rapid prototyping.
+
+---
+
+## Architecture Diagram
+
+A component diagram has been generated to visualize the high-level architecture of the application. You can view this diagram using a PlantUML viewer or plugin.
+
+*   **File Location:** `architecture.puml`
 
 ---
 
 ## Directory Structure
 
 ```text
-C:\Users\SILICON VALLEY\Desktop\prototype\backend\
+/
 ├── .env                # Environment variables (secrets, config)
 ├── package.json        # Dependencies and scripts
+├── architecture.puml   # PlantUML architecture diagram
 ├── src/
 │   ├── server.js       # MAIN ENTRY POINT
 │   ├── db/
@@ -42,157 +50,74 @@ C:\Users\SILICON VALLEY\Desktop\prototype\backend\
 │   │   └── projectAccess.js # Project-level Roles (Member checks)
 │   ├── controllers/    # Business logic functions
 │   │   ├── auth.controller.js
-│   │   ├── invitations.controller.js
-│   │   └── ...
+│   │   └── invitations.controller.js
 │   └── routes/         # API Endpoint definitions
 │       ├── auth.routes.js
 │       ├── projects.routes.js
 │       ├── users.routes.js
-│       └── ...
-└── docs/               # OpenAPI/Swagger documentation
+│       ├── appointments.routes.js
+│       ├── comments.routes.js
+│       └── settings.routes.js
+└── docs/
+    ├── api/openapi.yaml
+    └── code_breakdown/ # In-depth explanation of each source file
 ```
 
 ---
-
-## Detailed File Analysis
-
-### Configuration & Entry Point
-
-#### `src/server.js`
-**Purpose**: The central hub of the application.
-**Functionality**:
-1.  **Initialization**: Loads environment variables (`dotenv`) and sets up the Express app.
-2.  **Middleware Setup**: Configures global middleware like `cors` (Cross-Origin Resource Sharing) and body parsing (`express.json`).
-3.  **Route Mounting**: Connects all the route files to specific URL paths.
-    *   *Example*: `app.use("/auth", authRoutes)` means any request starting with `/auth` goes to `auth.routes.js`.
-4.  **Server Start**: Listens on the configured `PORT`.
-
-#### `.env`
-**Purpose**: Stores sensitive configuration.
-**Key Variables**:
-*   `PORT`: Port number for the server (default `3001`).
-*   `JWT_SECRET`: The private key used to sign and verify authentication tokens.
-
----
-
-
-### Database Layer (`src/db`)
-
-#### `src/db/inMemory.js`
-**Purpose**: Acts as the data source in place of a real database (like SQL or MongoDB).
-**Contents**:
-*   `users`: Array of user objects (contains hashed passwords, roles).
-*   `projects`: Array of project metadata.
-*   `projectMembers`: Relational table (Many-to-Many) linking `users` to `projects` with a `projectRole`.
-*   `invitations`: Stores pending user invites.
-**Connection**: Imported by Controllers and Routes to read/write data.
-
----
-
-
-### Middleware Layer (`src/middleware`)
-
-#### `src/middleware/auth.js`
-**Purpose**: Handles System-Level Security.
-**Exports**:
-1.  `requireAuth`: Checks for the `Authorization: Bearer <token>` header. Verifies the token using `jsonwebtoken`. Adds the decoded user to `req.user`.
-2.  `requireRole(...roles)`: Checks if `req.user.role` matches one of the allowed roles (e.g., `ADMIN`).
-**Usage**: Applied to protected routes in `src/routes/`.
-
-#### `src/middleware/projectAccess.js`
-**Purpose**: Handles Project-Level Security.
-**Exports**:
-1.  `requireProjectRole`: Checks if the authenticated user is actually a member of the specific project they are trying to access.
-**Usage**: Used in `projects.routes.js` for routes like `GET /projects/:id`.
-
----
-
-
-### Controllers Layer (`src/controllers`)
-
-Controllers hold the "Business Logic" — the actual code that executes when a user hits an endpoint. They keep the Route files clean.
-
-#### `src/controllers/auth.controller.js`
-**Purpose**: Manages authentication logic.
-**Key Functions**:
-*   `login(req, res)`:
-    1.  Receives `identifier` (username/email) and `password`.
-    2.  Finds user in `inMemory.js`.
-    3.  Compares password hash using `bcrypt`.
-    4.  Generates a JWT token.
-    5.  Returns the token and safe user details (no password).
-
-#### `src/controllers/invitations.controller.js` & `acceptInvitation.controller.js`
-**Purpose**: Logic for inviting new users and processing their acceptance tokens.
-
----
-
-
-### Routes Layer (`src/routes`)
-
-Route files define the API endpoints (URLs) and map them to specific Controller functions or write the logic inline.
-
-#### `src/routes/auth.routes.js`
-*   **Path**: `/auth`
-*   **Endpoints**: `POST /login` (calls `auth.controller.js`).
-
-#### `src/routes/projects.routes.js`
-*   **Path**: `/projects`
-*   **Endpoints**:
-    *   `GET /`: List projects (Admin only).
-    *   `GET /mine`: List projects the current user belongs to.
-    *   `GET /:id`: Get project details (Checks `projectMembers` data).
-    *   `POST /`: Create project.
-*   **Connection**: Heavily uses `requireAuth` and `inMemory.js`.
-
-#### `src/routes/users.*.routes.js` (Modular User Routes)
-The user routes are split into multiple files for better organization:
-*   `users.routes.js`: General user management (List users).
-*   `users.me.routes.js`: Operations on the *currently logged-in* user (e.g., "Get my profile").
-*   `users.byId.routes.js`: Operations requiring a User ID (e.g., "Get User #1").
-*   `profile.routes.js` & `updateProfile.routes.js`: Specific profile handling.
-
----
-
 
 ## Key Data Flows
 
 ### 1. The Login Flow
 1.  **User** sends `POST /auth/login` with credentials.
-2.  **Server** routes request to `src/routes/auth.routes.js`.
-3.  **Route** calls `login` function in `src/controllers/auth.controller.js`.
-4.  **Controller** reads `users` from `src/db/inMemory.js`.
-5.  **Controller** verifies password with `bcrypt`.
-6.  **Controller** returns a **JWT Token**.
+2.  **Server** routes the request to `src/routes/auth.routes.js`.
+3.  **Route** calls the `login` function in `src/controllers/auth.controller.js`.
+4.  **Controller** reads the `users` array from `src/db/inMemory.js`.
+5.  **Controller** verifies the password hash using `bcrypt`.
+6.  **Controller** signs and returns a **JWT Token**.
 
-### 2. Accessing a Protected Project
-1.  **User** sends `GET /projects/p1` with `Authorization: Bearer <token>`.
-2.  **Server** routes to `src/routes/projects.routes.js`.
-3.  **Middleware (`requireAuth`)** validates token and attaches user ID to request.
-4.  **Route Logic** checks `src/db/inMemory.js` (`projectMembers` array):
-    *   *Is User ID in Project ID "p1"?*
-5.  If yes, **Route** returns the project JSON.
-6.  If no, returns `403 Forbidden`.
+### 2. Accessing a Protected Project Resource (e.g., Comments)
+1.  **User** sends `GET /projects/p1/comments` with an `Authorization: Bearer <token>` header.
+2.  **Server** routes to `src/routes/comments.routes.js`.
+3.  **Middleware (`requireAuth`)** validates the JWT and attaches the user's ID to the request.
+4.  **Route Logic** checks if the user is a member of Project `p1` by querying the `projectMembers` array in `inMemory.js`.
+5.  If access is granted, the **Route** filters the `comments` array for project `p1` and returns the list.
+6.  If access is denied, it returns a `403 Forbidden` error.
 
 ---
 
+## API Features
+
+The API is organized by resource. Key features include:
+
+*   **/auth**: Login and invitation acceptance.
+*   **/users**: User management, searching, and invitations (Admin-only).
+*   **/profile**: Viewing and updating the current user's own profile.
+*   **/projects**: Core project management.
+*   **/projects/:id/appointments**: CRUD operations for project appointments.
+*   **/projects/:id/comments**: CRUD operations for project comments.
+*   **/settings**: Reading and updating application-wide settings.
+
+---
 
 ## Setup & Usage
 
 ### Prerequisites
-*   Node.js installed.
+*   [Node.js](https://nodejs.org/) (v16 or higher recommended)
+*   [npm](https://www.npmjs.com/)
 
 ### Installation
 ```bash
 npm install
 ```
 
-### Running
+### Running the Server
 ```bash
 npm run dev
 ```
+The server will start on the port defined in your `.env` file (default `3001`), with `nodemon` watching for file changes.
 
-### Testing the API
-You can use tools like **Postman** or **cURL**.
-*   **Default Admin User**: `admin` / `Test1234!`
-*   **Default Dev User**: `dev` / `Test1234!`
+---
+
+## Detailed Documentation
+
+For a file-by-file breakdown of the source code, including its connections and OpenAPI mappings, see the documents inside the `docs/code_breakdown/` directory.
