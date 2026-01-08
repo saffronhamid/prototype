@@ -1,0 +1,77 @@
+@startuml
+!theme vibrant
+
+title API Sequence Diagram: Get Project Comments (Detailed)
+
+actor Client
+participant "server.js" as Server
+participant "comments.routes.js" as Router
+participant "auth.js" as Middleware
+participant "Controller Logic" as Controller
+database "inMemory.js" as DB
+
+autonumber "<b>[00]"
+
+Client -> Server ++: GET /projects/p1/comments
+
+Server -> Server: Process Global Middleware
+note right
+  Global Middleware Runs:
+  app.use(cors())
+  app.use(express.json())
+end note
+
+Server -> Router ++: Route Request
+note right
+  URL matches prefix "/projects".
+  Hand off to comments.routes.js.
+end note
+
+Router -> Router: Match Path
+note right
+  Scans its routes.
+  Finds match for /:projectId/comments.
+end note
+
+Router -> Middleware ++: Execute requireAuth(req, res, next)
+    Middleware -> Middleware: 1. Read req.headers.authorization
+    Middleware -> Middleware: 2. Split header to get token
+    Middleware -> Middleware: 3. jwt.verify(token, JWT_SECRET)
+    note right
+      Validates token signature and expiration.
+      Throws an error if invalid.
+    end note
+    Middleware -> Middleware: 4. req.user = payload
+    note right: Attaches user data to the request.
+Middleware -> Router --: 5. return next()
+
+Router -> Controller ++: Execute Controller
+note right: All middleware passed. Call handler.
+
+Controller -> Controller: ensureProjectExists('p1')
+    Controller -> DB ++: projects.some(...)
+    DB --> Controller --: returns true
+
+Controller -> Controller: canAccessProject(req, 'p1')
+    Controller -> DB ++: projectMembers.some(...)
+    note right of DB
+      Checks if user req.user.id
+      is in project p1.
+    end note
+    DB --> Controller --: returns true
+
+Controller -> DB ++: comments.filter(...)
+DB --> Controller --: Returns [comment1, comment2]
+
+Controller -> Controller: .sort(...)
+note right: Sorts the filtered comments.
+
+Controller -> Server --: res.json(sortedComments)
+
+Server --> Client --: HTTP 200 OK
+note right
+  Response Body:
+  [comment1, comment2]
+end note
+
+@enduml
